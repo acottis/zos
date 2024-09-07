@@ -5,6 +5,7 @@ pub fn build(b: *std.Build) void {
 
     const target = b.standardTargetOptions(.{ .default_target = .{
         .os_tag = .uefi,
+        .cpu_arch = .x86_64,
     } });
     const optimize = b.standardOptimizeOption(.{});
 
@@ -17,7 +18,13 @@ pub fn build(b: *std.Build) void {
     b.exe_dir = "zig-out/EFI/BOOT/";
     b.installArtifact(exe);
 
-    const run_cmd = b.addSystemCommand(&.{ "qemu-system-x86_64", "-bios", UEFI_BIOS, "-drive", "file=fat:rw:zig-out,format=raw" });
+    const run_cmd = b.addSystemCommand(&.{
+        "qemu-system-x86_64",
+        "-bios",
+        UEFI_BIOS,
+        "-drive",
+        "file=fat:rw:zig-out,format=raw",
+    });
     run_cmd.step.dependOn(b.default_step);
 
     const run_step = b.step("run", "Boot in qemu");
