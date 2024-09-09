@@ -44,6 +44,24 @@ fn get_memory_map(mem_map_key: *usize) uefi.Status {
     );
 }
 
+const Graphics = struct {
+    buffer_base: u64,
+    height: u32,
+    width: u32,
+
+    fn init(buffer_base: u64, height: u32, width: u32) @This() {
+        return @This(){
+            .buffer_base = buffer_base,
+            .height = height,
+            .width = width,
+        };
+    }
+    fn draw_pixel(self: @This(), x: u32, y: u32) void {
+        const offset: *u32 = @ptrFromInt(self.buffer_base + (y * self.width + x));
+        offset.* = 0xFFFF;
+    }
+};
+
 pub fn main() uefi.Status {
     var res: uefi.Status = undefined;
     const writer = Writer.init(uefi.system_table.con_out.?);
@@ -57,7 +75,14 @@ pub fn main() uefi.Status {
         writer.print("Failed to get graphics output {}\r\n", .{res});
     }
     const frame_buffer = graphics_output.mode.frame_buffer_base;
-    writer.print("Frame Buffer Base: 0x{X}\r\n", .{frame_buffer});
+    const frame_height = graphics_output.mode.info.vertical_resolution;
+    const frame_width = graphics_output.mode.info.horizontal_resolution;
+    const graphics = Graphics.init(frame_buffer, frame_height, frame_width);
+    writer.print("Frame Buffer Base: 0x{X}, Width: {}, Height: {}\r\n", .{
+        frame_buffer,
+        frame_width,
+        frame_height,
+    });
 
     var mem_map_key: usize = 0;
     res = get_memory_map(&mem_map_key);
@@ -69,6 +94,8 @@ pub fn main() uefi.Status {
     if (res != uefi.Status.Success) {
         writer.print("Failed to exit boot services {}\r\n", .{res});
     }
+
+    graphics.draw_pixel(0, 0);
 
     while (true) {
         cpu.halt();
